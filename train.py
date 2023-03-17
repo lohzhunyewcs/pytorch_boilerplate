@@ -5,6 +5,7 @@ from task_type import TextTaskType, VisionTaskType
 from typing import Union
 import copy
 import time
+from metrics import BaseMetrics
 
 def print_and_log(str, log_file):
     raise NotImplementedError
@@ -32,6 +33,7 @@ def train(
     optimizer: torch.optim.optimizer.Optimizer,
     device: torch.device,
     model_save_folder_path: str,
+    metrics: list[BaseMetrics],
     scheduler: torch.optim.lr_scheduler=None,
     n_epochs: int=5,
 ):
