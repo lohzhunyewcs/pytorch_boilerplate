@@ -38,6 +38,9 @@ def train(
     n_epochs: int=5,
 ):
     best_acc = 0
+
+    if torch.__version__ >= "2.0.0":
+        model = torch.compile(model)
     model = model.to(device)
 
     overall_start_time = time.time()
