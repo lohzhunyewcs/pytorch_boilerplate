@@ -6,9 +6,15 @@ from typing import Union
 import copy
 import time
 from metrics import BaseMetrics
+import os
+
+from tqdm import tqdm
+import sys
 
 def print_and_log(str, log_file):
-    raise NotImplementedError
+    print(f'{str}')
+    with open(log_file, 'a') as log:
+        log.write(f'{str}\n')
 
 def post_process(
     task: Union[TextTaskType, VisionTaskType],
@@ -19,7 +25,7 @@ def post_process(
         if num_class == 1:
             cat_output = (torch.sigmoid(model_output) >= 0.5).int()
         else:
-            cat_output = torch.argmax(torch.softmax(model_output, dim=1), dim=1)
+            cat_output = torch.argmax(model_output, dim=1)
 
     return cat_output
 
@@ -30,16 +36,24 @@ def train(
     task: Union[TextTaskType, VisionTaskType],
     num_class: int,
     criterion: torch.nn.modules.loss._Loss,
-    optimizer: torch.optim.optimizer.Optimizer,
+    optimizer: torch.optim.Optimizer,
     device: torch.device,
     model_save_folder_path: str,
     metrics: list[BaseMetrics],
     scheduler: torch.optim.lr_scheduler=None,
     n_epochs: int=5,
 ):
-    best_acc = 0
+    os.makedirs(model_save_folder_path, exist_ok=True)
+    log_file_path = f'{model_save_folder_path}/log_file.txt'
+    # Empty log file
+    with open(log_file_path, 'w') as log_file:
+        pass
 
-    if torch.__version__ >= "2.0.0":
+    best_acc = 0
+    best_epoch = 0
+
+    # check if torch is version 2.0 and is not windows
+    if torch.__version__ >= "2.0.0" and os.name != "nt":
         model = torch.compile(model)
     model = model.to(device)
 
@@ -47,10 +61,11 @@ def train(
 
     for n_epoch in range(n_epochs):
         epoch_start_time = time.time()
-        print(f'-' * 10)
-        print(f'On {n_epoch = }')
+        print_and_log(f'-' * 10, log_file_path)
+        print_and_log(f'On {n_epoch = }', log_file_path)
         for mode, dataloader in mode_to_dataloaders.items():
-            if mode ==  "train":
+            optimizer.zero_grad()
+            if mode == "train":
                 model.train()
             else:
                 model.eval()
@@ -61,38 +76,49 @@ def train(
             datasize = mode_to_datasize[mode]
 
             with torch.set_grad_enabled(mode == "train"):
-                for inputs, gts in dataloader:
-                    inputs = inputs.to(device)
-                    gts = gts.to(device)
-                    outputs = model(inputs)
+                with tqdm(
+                    dataloader,
+                    desc=mode,
+                    file=sys.stdout,
+                    disable=False,
+                ) as iterator:
+                    for inputs, gts in iterator:
+                        inputs = inputs.to(device)
+                        gts = gts.to(device)
 
-                    predicted_cat = post_process(task, num_class, outputs)
-                    
-                    loss = criterion(outputs, gts)
+                        # zero the parameter gradients
+                        optimizer.zero_grad()
 
-                    if mode == "train":
-                        loss.backward()
-                        optimizer.step()
+                        outputs = model(inputs)
 
-                    running_loss += loss.item() * inputs.size(0)
-                    running_corrects += torch.sum(predicted_cat == gts)
+                        predicted_cat = post_process(task, num_class, outputs)
+                        
+                        loss = criterion(outputs, gts)
 
-            if mode == "train" and scheduler is not None:
-                scheduler.step()
+                        if mode == "train":
+                            loss.backward()
+                            optimizer.step()
+
+                        running_loss += loss.item() * inputs.size(0)
+                        running_corrects += torch.sum(predicted_cat == gts.data)
+
+            # if mode == "train" and scheduler is not None:
+            #     scheduler.step()
 
             epoch_loss = running_loss / datasize
             epoch_acc = running_corrects.double() / datasize
 
-            print(f'{mode} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
+            print_and_log(f'{mode} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}', log_file_path)
 
             if mode == 'val' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_weights = copy.deepcopy(model.state_dict())
+                best_epoch = n_epoch
 
         model_save_path = f'{model_save_folder_path}/{n_epoch}.pt'
         torch.save(model.state_dict(), model_save_path)
 
-        print(f'Current {best_acc = }')
+        print_and_log(f'Current {best_acc = } from {best_epoch = }', log_file_path)
 
-        print(f'Total time taken for this epoch = {time.time() - epoch_start_time}')
-        print(f'Total time taken so far = {time.time() - overall_start_time}')
+        print_and_log(f'Total time taken for this epoch = {time.time() - epoch_start_time}', log_file_path)
+        print_and_log(f'Total time taken so far = {time.time() - overall_start_time}', log_file_path)
