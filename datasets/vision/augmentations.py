@@ -37,7 +37,9 @@ import random
 
 def create_transforms(
         is_train: bool, img_width: int, img_height: int,
-        use_random_crop: bool=False
+        use_random_crop: bool=False,
+        use_weathers: bool=False,
+        use_simple_only: bool=True
     ) -> torch.TensorType:
     transforms_list = []
     
@@ -60,20 +62,22 @@ def create_transforms(
     # some_of_list.append(A.Blur())
     some_of_list.append(A.GaussNoise())
     some_of_list.append(A.ElasticTransform())
-    some_of_list.append(A.Cutout(p=1))
+    some_of_list.append(A.Cutout(p=0.1))
 
     some_of_list.append(A.augmentations.geometric.rotate.Rotate(limit=180)) 
 
-    some_of_list += [
-        # A.CLAHE(),
-        # A.RandomRotate90(),
-        A.Transpose(),
-        A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.50, rotate_limit=45, p=.75),
-        A.Blur(blur_limit=3),
-        A.OpticalDistortion(),
-        A.GridDistortion(),
-        A.HueSaturationValue(),
-    ]
+    if not use_simple_only:
+
+        some_of_list += [
+            # A.CLAHE(),
+            # A.RandomRotate90(),
+            A.Transpose(),
+            A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.50, rotate_limit=45, p=.75),
+            A.Blur(blur_limit=3),
+            A.OpticalDistortion(),
+            A.GridDistortion(),
+            A.HueSaturationValue(),
+        ]
     
 
     weather_list = []
@@ -98,9 +102,10 @@ def create_transforms(
             )
         )
         # print(f'some of {transforms_list = }')
-        transforms_list.append(
-            weather_transforms
-        )
+        if use_weathers:
+            transforms_list.append(
+                weather_transforms
+            )
         # print(f'some of {weather_transforms = }')
 
     transforms_list += [
