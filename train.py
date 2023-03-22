@@ -19,15 +19,19 @@ def print_and_log(str, log_file):
 def post_process(
     task: Union[TextTaskType, VisionTaskType],
     num_class: int,
-    model_output: torch.Tensor
+    model_output: torch.Tensor,
+    gts: torch.Tensor
 ):
     if task == VisionTaskType.ImageClassification:
         if num_class == 1:
             cat_output = (torch.sigmoid(model_output) >= 0.5).int()
         else:
             cat_output = torch.argmax(model_output, dim=1)
+            processed_gts = None
+    else:
+        raise NotImplementedError
 
-    return cat_output
+    return cat_output, processed_gts
 
 def train(
     model: torch.nn.Module,
@@ -75,23 +79,24 @@ def train(
 
             datasize = mode_to_datasize[mode]
 
-            with torch.set_grad_enabled(mode == "train"):
-                with tqdm(
-                    dataloader,
-                    desc=mode,
-                    file=sys.stdout,
-                    disable=False,
-                ) as iterator:
-                    for inputs, gts in iterator:
-                        inputs = inputs.to(device)
-                        gts = gts.to(device)
+            with tqdm(
+                dataloader,
+                desc=mode,
+                file=sys.stdout,
+                disable=False,
+            ) as iterator:
+                iterated_data_size = 0
+                for inputs, gts in iterator:
+                    inputs = inputs.to(device)
+                    gts = gts.to(device)
 
-                        # zero the parameter gradients
-                        optimizer.zero_grad()
-
+                    # zero the parameter gradients
+                    optimizer.zero_grad()
+                        
+                    with torch.set_grad_enabled(mode == "train"):
                         outputs = model(inputs)
 
-                        predicted_cat = post_process(task, num_class, outputs)
+                        predicted_cat, processed_gts = post_process(task, num_class, outputs, gts)
                         
                         loss = criterion(outputs, gts)
 
@@ -99,11 +104,15 @@ def train(
                             loss.backward()
                             optimizer.step()
 
-                        running_loss += loss.item() * inputs.size(0)
-                        running_corrects += torch.sum(predicted_cat == gts.data)
+                    running_loss += loss.item() * inputs.size(0)
+                    running_corrects += torch.sum(predicted_cat == gts.data)
 
-            # if mode == "train" and scheduler is not None:
-            #     scheduler.step()
+                    iterated_data_size += inputs.size(0)
+
+                    iterator.set_description(f"Curr Loss = {running_loss / iterated_data_size}, Acc = {running_corrects.double() / iterated_data_size:.4f}")
+
+            if mode == "train" and scheduler is not None:
+                scheduler.step()
 
             epoch_loss = running_loss / datasize
             epoch_acc = running_corrects.double() / datasize
@@ -122,3 +131,70 @@ def train(
 
         print_and_log(f'Total time taken for this epoch = {time.time() - epoch_start_time}', log_file_path)
         print_and_log(f'Total time taken so far = {time.time() - overall_start_time}', log_file_path)
+
+
+def train_model(model, criterion, optimizer, scheduler, dataloaders, device, dataset_sizes, num_epochs=25):
+    since = time.time()
+
+    best_model_wts = copy.deepcopy(model.state_dict())
+    best_acc = 0.0
+
+    for epoch in range(num_epochs):
+        print(f'Epoch {epoch}/{num_epochs - 1}')
+        print('-' * 10)
+
+        # Each epoch has a training and validation phase
+        for phase in ['train', 'val']:
+            if phase == 'train':
+                model.train()  # Set model to training mode
+            else:
+                model.eval()   # Set model to evaluate mode
+
+            running_loss = 0.0
+            running_corrects = 0
+
+            # Iterate over data.
+            for inputs, labels in dataloaders[phase]:
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+
+                # zero the parameter gradients
+                optimizer.zero_grad()
+
+                # forward
+                # track history if only in train
+                with torch.set_grad_enabled(phase == 'train'):
+                    outputs = model(inputs)
+                    _, preds = torch.max(outputs, 1)
+                    loss = criterion(outputs, labels)
+
+                    # backward + optimize only if in training phase
+                    if phase == 'train':
+                        loss.backward()
+                        optimizer.step()
+
+                # statistics
+                running_loss += loss.item() * inputs.size(0)
+                running_corrects += torch.sum(preds == labels.data)
+            if phase == 'train':
+                scheduler.step()
+
+            epoch_loss = running_loss / dataset_sizes[phase]
+            epoch_acc = running_corrects.double() / dataset_sizes[phase]
+
+            print(f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
+
+            # deep copy the model
+            if phase == 'val' and epoch_acc > best_acc:
+                best_acc = epoch_acc
+                best_model_wts = copy.deepcopy(model.state_dict())
+
+        print()
+
+    time_elapsed = time.time() - since
+    print(f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
+    print(f'Best val Acc: {best_acc:4f}')
+
+    # load best model weights
+    model.load_state_dict(best_model_wts)
+    return model

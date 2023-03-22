@@ -45,16 +45,18 @@ class ImageClassificationDataset(Dataset):
 
         img_path = self.image_paths[idx]
         # img = cv2.imread(img_path)
-        img = Image.open(img_path)
+        # img = Image.open(img_path)
 
         # print(f'before transform')
         # print(f'{type(img) = }, {img.shape = }')
-        if self.img_transforms is not None:
-            if type(self.img_transforms) == transforms.transforms.Compose:
-                # img = torch.from_numpy(img)
-                img = self.img_transforms(img)
-            else:
-                img = self.img_transforms(image=img)['image']
+        assert self.img_transforms is not None
+        if type(self.img_transforms) == transforms.transforms.Compose:
+            # img = torch.from_numpy(img)
+            img = Image.open(img_path)
+            img = self.img_transforms(img)
+        else:
+            img = cv2.imread(img_path)
+            img = self.img_transforms(image=img)['image']
 
         # print(f'after transform')
         # print(f'{type(img) = }')
@@ -68,8 +70,12 @@ class ImageClassificationDataset(Dataset):
         #     gt_list[gt] = 1
         # gt_tensor = torch.tensor(gt_list, dtype=torch.float)
 
-        gt_tensor = torch.tensor(gt)
+        # gt_list = [0] * self.num_class
+        # gt_list[gt] = 1
+
+        # gt_tensor = torch.tensor(gt_list).float()
         # print(f'Done Generating GT')
+        gt_tensor = torch.tensor(gt)
 
         
         if self.debug_mode:
