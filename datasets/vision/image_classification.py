@@ -4,6 +4,7 @@ from torchvision import transforms
 import cv2
 import torch
 from albumentations.core.transforms_interface import BasicTransform
+from PIL import Image
 
 DEFAULT_DATA_TRANSFORMS = {
     'train': transforms.Compose([
@@ -43,13 +44,14 @@ class ImageClassificationDataset(Dataset):
     def __getitem__(self, idx):
 
         img_path = self.image_paths[idx]
-        img = cv2.imread(img_path)
+        # img = cv2.imread(img_path)
+        img = Image.open(img_path)
 
         # print(f'before transform')
         # print(f'{type(img) = }, {img.shape = }')
         if self.img_transforms is not None:
             if type(self.img_transforms) == transforms.transforms.Compose:
-                img = torch.from_numpy(img)
+                # img = torch.from_numpy(img)
                 img = self.img_transforms(img)
             else:
                 img = self.img_transforms(image=img)['image']
