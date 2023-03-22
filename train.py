@@ -109,7 +109,7 @@ def train(
 
                     iterated_data_size += inputs.size(0)
 
-                    iterator.set_description(f"Curr Loss = {running_loss / iterated_data_size}, Acc = {running_corrects.double() / iterated_data_size:.4f}")
+                    iterator.set_description(f"Curr Loss = {running_loss / iterated_data_size:.4f}, Acc = {running_corrects.double() / iterated_data_size:.4f}")
 
             if mode == "train" and scheduler is not None:
                 scheduler.step()
@@ -127,7 +127,7 @@ def train(
         model_save_path = f'{model_save_folder_path}/{n_epoch}.pt'
         torch.save(model.state_dict(), model_save_path)
 
-        print_and_log(f'Current {best_acc = } from {best_epoch = }', log_file_path)
+        print_and_log(f'{mode = } current {best_acc = } from {best_epoch = }', log_file_path)
 
         print_and_log(f'Total time taken for this epoch = {time.time() - epoch_start_time}', log_file_path)
         print_and_log(f'Total time taken so far = {time.time() - overall_start_time}', log_file_path)

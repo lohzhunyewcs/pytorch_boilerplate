@@ -56,6 +56,7 @@ class ImageClassificationDataset(Dataset):
             img = self.img_transforms(img)
         else:
             img = cv2.imread(img_path)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             img = self.img_transforms(image=img)['image']
 
         # print(f'after transform')
