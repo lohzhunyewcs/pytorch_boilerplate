@@ -1,5 +1,4 @@
 from typing import Any, Union
-import torchmetrics as tm
 from .base import BaseMetrics
 from torcheval.metrics import BinaryRecall, MulticlassRecall
 
@@ -13,7 +12,6 @@ class Recall(BaseMetrics):
     __name__ = "Precision"
     def __init__(
             self, num_class: int,
-            threshold: float=0.5,
             task: str=None
     ) -> None:
         super().__init__()
@@ -23,4 +21,4 @@ class Recall(BaseMetrics):
             else:
                 task = "binary"
         assert task in Recall.task_choices
-        self.metric = Recall.task_to_metric[task](threshold=threshold)
+        self.metric = Recall.task_to_metric[task]()

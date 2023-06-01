@@ -1,5 +1,4 @@
 from typing import Any, Union
-import torchmetrics as tm
 from torcheval.metrics import BinaryAccuracy, MulticlassAccuracy, MultilabelAccuracy
 from .base import BaseMetrics
 
@@ -37,7 +36,6 @@ class Precision(BaseMetrics):
     __name__ = "Precision"
     def __init__(
             self, num_class: int,
-            threshold: float=0.5,
             task: str=None
     ) -> None:
         super().__init__()
@@ -47,6 +45,6 @@ class Precision(BaseMetrics):
             else:
                 task = "binary"
         assert task in Precision.task_choices
-        self.metric = Precision.task_to_metric[task](threshold=threshold)
+        self.metric = Precision.task_to_metric[task]()
 
     

@@ -20,18 +20,18 @@ def post_process(
     task: Union[TextTaskType, VisionTaskType],
     num_class: int,
     model_output: torch.Tensor,
-    gts: torch.Tensor
+    gts: torch.Tensor,
+    threshold: float
 ):
     if task == VisionTaskType.ImageClassification:
         if num_class == 1:
-            cat_output = (torch.sigmoid(model_output) >= 0.5).int()
+            cat_output = (torch.sigmoid(model_output) >= threshold).int()
         else:
             cat_output = torch.argmax(model_output, dim=1)
-            processed_gts = None
     else:
         raise NotImplementedError
 
-    return cat_output, processed_gts
+    return cat_output
 
 def train(
     model: torch.nn.Module,
@@ -99,12 +99,12 @@ def train(
                     with torch.set_grad_enabled(mode == "train"):
                         outputs = model(inputs)
 
-                        predicted_cat, processed_gts = post_process(task, num_class, outputs, gts)
+                        predicted_cat = post_process(task, num_class, outputs, gts)
                         
                         loss = criterion(outputs, gts)
 
                         for metric in metrics:
-                            metric.add(predicted_cat, processed_gts)
+                            metric.add(predicted_cat, gts)
 
                         if mode == "train":
                             loss.backward()

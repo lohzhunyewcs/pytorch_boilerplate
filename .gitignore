@@ -132,3 +132,5 @@ data/
 saved_models/
 
 *.pt
+
+*.ipynb
