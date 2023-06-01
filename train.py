@@ -68,6 +68,9 @@ def train(
         print_and_log(f'-' * 10, log_file_path)
         print_and_log(f'On {n_epoch = }', log_file_path)
         for mode, dataloader in mode_to_dataloaders.items():
+            for metric in metrics:
+                metric.reset()
+
             optimizer.zero_grad()
             if mode == "train":
                 model.train()
@@ -100,6 +103,9 @@ def train(
                         
                         loss = criterion(outputs, gts)
 
+                        for metric in metrics:
+                            metric.add(predicted_cat, processed_gts)
+
                         if mode == "train":
                             loss.backward()
                             optimizer.step()
@@ -117,7 +123,12 @@ def train(
             epoch_loss = running_loss / datasize
             epoch_acc = running_corrects.double() / datasize
 
-            print_and_log(f'{mode} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}', log_file_path)
+            print_string = f'{mode} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}'
+            for metric in metrics:
+                print_string += f' {metric.__name__}: {metric.compute():.4f}'
+            # print_and_log(f'{mode} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}', log_file_path)
+            print_and_log(print_string, log_file_path)
+            
 
             if mode == 'val' and epoch_acc > best_acc:
                 best_acc = epoch_acc
