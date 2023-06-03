@@ -9,7 +9,7 @@ class Recall(BaseMetrics):
         "binary": BinaryRecall,
         "multiclass": MulticlassRecall,
     }
-    __name__ = "Precision"
+    __name__ = "Recall"
     def __init__(
             self, num_class: int,
             task: str=None
