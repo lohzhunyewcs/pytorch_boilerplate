@@ -56,9 +56,9 @@ def train(
     best_acc = 0
     best_epoch = 0
 
-    # check if torch is version 2.0 and is not windows
-    if torch.__version__ >= "2.0.0" and os.name != "nt":
-        model = torch.compile(model)
+    # # check if torch is version 2.0 and is not windows
+    # if torch.__version__ >= "2.0.0" and os.name != "nt":
+    #     model = torch.compile(model)
     model = model.to(device)
 
     overall_start_time = time.time()
@@ -71,7 +71,6 @@ def train(
             # for metric in metrics:
             #     metric.reset()
 
-            optimizer.zero_grad()
             if mode == "train":
                 model.train()
             else:
