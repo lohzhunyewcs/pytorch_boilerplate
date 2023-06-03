@@ -21,7 +21,7 @@ def post_process(
     num_class: int,
     model_output: torch.Tensor,
     gts: torch.Tensor,
-    threshold: float
+    threshold: float=0.5
 ):
     if task == VisionTaskType.ImageClassification:
         if num_class == 1:
@@ -68,8 +68,8 @@ def train(
         print_and_log(f'-' * 10, log_file_path)
         print_and_log(f'On {n_epoch = }', log_file_path)
         for mode, dataloader in mode_to_dataloaders.items():
-            for metric in metrics:
-                metric.reset()
+            # for metric in metrics:
+            #     metric.reset()
 
             optimizer.zero_grad()
             if mode == "train":
@@ -115,7 +115,11 @@ def train(
 
                     iterated_data_size += inputs.size(0)
 
-                    iterator.set_description(f"Curr Loss = {running_loss / iterated_data_size:.4f}, Acc = {running_corrects.double() / iterated_data_size:.4f}")
+                    it_desc = f"{mode} Loss = {running_loss / iterated_data_size:.4f}, Acc = {running_corrects.double() / iterated_data_size:.4f}"
+                    
+                    for metric in metrics:
+                        it_desc += f' {metric.__name__}: {metric.compute():.4f}'
+                    iterator.set_description()
 
             if mode == "train" and scheduler is not None:
                 scheduler.step()
@@ -126,6 +130,7 @@ def train(
             print_string = f'{mode} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}'
             for metric in metrics:
                 print_string += f' {metric.__name__}: {metric.compute():.4f}'
+                metric.reset()
             # print_and_log(f'{mode} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}', log_file_path)
             print_and_log(print_string, log_file_path)
             
