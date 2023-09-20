@@ -52,7 +52,7 @@ class ImageClassificationDataset(Dataset):
         assert self.img_transforms is not None
         if type(self.img_transforms) == transforms.transforms.Compose:
             # img = torch.from_numpy(img)
-            img = Image.open(img_path)
+            img = Image.open(img_path).convert('RGB')
             img = self.img_transforms(img)
         else:
             img = cv2.imread(img_path)
