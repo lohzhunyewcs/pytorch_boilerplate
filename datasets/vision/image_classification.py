@@ -5,6 +5,7 @@ import cv2
 import torch
 from albumentations.core.transforms_interface import BasicTransform
 from PIL import Image
+import os
 
 DEFAULT_DATA_TRANSFORMS = {
     'train': transforms.Compose([
@@ -90,15 +91,21 @@ def get_dataset_and_dataloader(
         img_transforms: transforms,
         label_transforms: transforms,
         batch_size: int,
-        shuffle: bool
+        shuffle: bool,
+        num_workers: int=None
     ):
+    if num_workers is None:
+        if os.name == 'nt':
+            num_workers = 0
+        else:
+            num_workers = 16
     dataset = ImageClassificationDataset(
             image_paths, gts, gt_to_cat_name, img_transforms, label_transforms
     )
     datasize = len(dataset)
 
     dataloader = DataLoader(
-        dataset, batch_size, shuffle
+        dataset, batch_size, shuffle, num_workers=num_workers
     )
     return {
         'dataset': dataset,
