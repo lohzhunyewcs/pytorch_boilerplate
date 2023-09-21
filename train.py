@@ -118,7 +118,7 @@ def train(
                     
                     for metric in metrics:
                         it_desc += f' {metric.__name__}: {metric.compute():.4f}'
-                    iterator.set_description()
+                    iterator.set_description(it_desc)
 
             if mode == "train" and scheduler is not None:
                 scheduler.step()
@@ -134,7 +134,7 @@ def train(
             print_and_log(print_string, log_file_path)
             
 
-            if mode == 'val' and epoch_acc > best_acc:
+            if 'val' in mode and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_weights = copy.deepcopy(model.state_dict())
                 best_epoch = n_epoch
